@@ -73,9 +73,43 @@ https://share.streamlit.io/signupwithanand/vectordb-faissproj/main/app.py
 - Make sure `requirements.txt` is in the root directory
 - Check that `app.py` is the correct entry point
 
-**4. Dependency Issues:**
-- If deployment fails, check the logs in Streamlit Cloud
-- Ensure all packages in `requirements.txt` are available
+**4. Dependency Installation Errors:**
+
+If you get "installer returned a non-zero exit code" error:
+
+**Option A: Use Minimal Requirements (Recommended)**
+1. Rename current requirements: `mv requirements.txt requirements-full.txt`
+2. Use minimal requirements: `mv requirements-minimal.txt requirements.txt`
+3. Commit and push: 
+   ```bash
+   git add .
+   git commit -m "Use minimal requirements for Streamlit Cloud"
+   git push
+   ```
+4. Restart deployment in Streamlit Cloud
+
+**Option B: Fix Version Conflicts**
+1. Try the updated requirements.txt with compatible versions
+2. If still failing, remove version pins completely
+3. Let Streamlit Cloud use latest compatible versions
+
+**Option C: Manual Dependency Management**
+Create this `requirements.txt`:
+```
+streamlit
+faiss-cpu
+sentence-transformers
+numpy<2.0
+pandas
+matplotlib
+scikit-learn
+plotly
+```
+
+**5. Memory Issues:**
+- FAISS and sentence-transformers are memory-intensive
+- Streamlit Cloud has limited resources
+- Consider using smaller models if deployment fails
 
 ## 📋 Files Ready for Deployment
 
