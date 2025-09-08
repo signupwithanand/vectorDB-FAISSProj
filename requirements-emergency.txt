@@ -1,9 +1,0 @@
-# Minimal requirements for immediate deployment
-streamlit
-faiss-cpu
-sentence-transformers
-numpy
-pandas
-matplotlib
-scikit-learn
-plotly
