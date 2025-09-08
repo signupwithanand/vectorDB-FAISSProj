@@ -1,8 +1,0 @@
-streamlit
-faiss-cpu
-sentence-transformers
-numpy
-pandas
-matplotlib
-scikit-learn
-plotly
