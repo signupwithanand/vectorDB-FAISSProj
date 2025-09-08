@@ -23,6 +23,23 @@ from sklearn.manifold import TSNE
 import pandas as pd
 from typing import List, Tuple, Optional
 import time
+import io
+
+# File processing imports
+try:
+    import PyPDF2
+except ImportError:
+    PyPDF2 = None
+
+try:
+    from docx import Document
+except ImportError:
+    Document = None
+
+try:
+    from pptx import Presentation
+except ImportError:
+    Presentation = None
 
 # Configure page
 st.set_page_config(
@@ -101,6 +118,100 @@ def embed_text(text: str, model: SentenceTransformer) -> np.ndarray:
     """
     embedding = model.encode([text])
     return embedding[0]
+
+def extract_text_from_pdf(file) -> str:
+    """
+    Extract text from uploaded PDF file
+    
+    Args:
+        file: Streamlit uploaded file object
+        
+    Returns:
+        Extracted text as string
+    """
+    if PyPDF2 is None:
+        return "PDF processing not available. Please install PyPDF2."
+    
+    try:
+        pdf_reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
+        text = ""
+        for page in pdf_reader.pages:
+            text += page.extract_text() + "\n"
+        return text.strip()
+    except Exception as e:
+        return f"Error reading PDF: {str(e)}"
+
+def extract_text_from_docx(file) -> str:
+    """
+    Extract text from uploaded Word document
+    
+    Args:
+        file: Streamlit uploaded file object
+        
+    Returns:
+        Extracted text as string
+    """
+    if Document is None:
+        return "Word document processing not available. Please install python-docx."
+    
+    try:
+        doc = Document(io.BytesIO(file.read()))
+        text = ""
+        for paragraph in doc.paragraphs:
+            text += paragraph.text + "\n"
+        return text.strip()
+    except Exception as e:
+        return f"Error reading Word document: {str(e)}"
+
+def extract_text_from_pptx(file) -> str:
+    """
+    Extract text from uploaded PowerPoint presentation
+    
+    Args:
+        file: Streamlit uploaded file object
+        
+    Returns:
+        Extracted text as string
+    """
+    if Presentation is None:
+        return "PowerPoint processing not available. Please install python-pptx."
+    
+    try:
+        prs = Presentation(io.BytesIO(file.read()))
+        text = ""
+        for slide_num, slide in enumerate(prs.slides, 1):
+            text += f"Slide {slide_num}:\n"
+            for shape in slide.shapes:
+                if hasattr(shape, "text") and shape.text:
+                    text += shape.text + "\n"
+            text += "\n"
+        return text.strip()
+    except Exception as e:
+        return f"Error reading PowerPoint: {str(e)}"
+
+def process_uploaded_file(file) -> Tuple[str, str]:
+    """
+    Process uploaded file and extract text based on file type
+    
+    Args:
+        file: Streamlit uploaded file object
+        
+    Returns:
+        Tuple of (extracted_text, file_info)
+    """
+    file_extension = file.name.lower().split('.')[-1]
+    file_info = f"📄 {file.name} ({file.size:,} bytes)"
+    
+    if file_extension == 'pdf':
+        text = extract_text_from_pdf(file)
+    elif file_extension in ['docx', 'doc']:
+        text = extract_text_from_docx(file)
+    elif file_extension in ['pptx', 'ppt']:
+        text = extract_text_from_pptx(file)
+    else:
+        text = f"Unsupported file type: .{file_extension}"
+    
+    return text, file_info
 
 def create_faiss_index(embeddings: List[np.ndarray]) -> faiss.IndexFlatIP:
     """
@@ -265,6 +376,7 @@ def display_educational_panel():
         
         **Key Concepts:**
         - 📝 **Documents** → **Vectors**: Text is converted to high-dimensional vectors (embeddings)
+        - 📁 **File Support**: Upload PDF, Word, PowerPoint files for automatic text extraction
         - 📏 **Similarity**: Measures how "close" vectors are in the embedding space
         - 🔍 **Search**: Finds the most similar vectors to your query
         """)
@@ -311,44 +423,107 @@ def main():
     
     # Section 1: Add Documents
     with col1:
-        st.header("📄 Add Documents")
+        st.header("📄 Document Management")
         
-        new_doc = st.text_area(
-            "Enter a new document:",
-            placeholder="Type your document here...",
-            help="Add text documents that will be converted to embeddings and stored in FAISS"
-        )
+        # Create tabs for different input methods
+        tab1, tab2 = st.tabs(["✍️ Manual Input", "📁 File Upload"])
         
-        if st.button("Add Document", type="primary"):
-            if new_doc.strip():
-                with st.spinner("Generating embedding..."):
-                    # Generate embedding
-                    embedding = embed_text(new_doc.strip(), st.session_state.model)
-                    
-                    # Add to session state
-                    st.session_state.documents.append(new_doc.strip())
-                    st.session_state.embeddings.append(embedding)
-                    
-                    # Recreate FAISS index
-                    st.session_state.faiss_index = create_faiss_index(st.session_state.embeddings)
-                    
-                    st.success(f"Document added! Total documents: {len(st.session_state.documents)}")
-                    st.rerun()
-            else:
-                st.error("Please enter some text!")
+        # Tab 1: Manual text input
+        with tab1:
+            new_doc = st.text_area(
+                "✍️ Enter a new document:",
+                placeholder="Type your document here... (e.g., 'Machine learning helps computers learn from data')",
+                help="Add text documents that will be converted to embeddings and stored in FAISS",
+                height=100,
+                key="manual_input"
+            )
+            
+            if st.button("➕ Add Text Document", type="primary", use_container_width=True, key="add_manual"):
+                if new_doc.strip():
+                    with st.spinner("🔄 Generating embedding..."):
+                        # Generate embedding
+                        embedding = embed_text(new_doc.strip(), st.session_state.model)
+                        
+                        # Add to session state
+                        st.session_state.documents.append(new_doc.strip())
+                        st.session_state.embeddings.append(embedding)
+                        
+                        # Recreate FAISS index
+                        st.session_state.faiss_index = create_faiss_index(st.session_state.embeddings)
+                        
+                        st.success(f"✅ Document added! Total: {len(st.session_state.documents)} documents")
+                        st.rerun()
+                else:
+                    st.error("⚠️ Please enter some text!")
+        
+        # Tab 2: File upload
+        with tab2:
+            uploaded_files = st.file_uploader(
+                "📁 Upload documents:",
+                type=['pdf', 'docx', 'doc', 'pptx', 'ppt'],
+                accept_multiple_files=True,
+                help="Supported formats: PDF, Word documents (.docx, .doc), PowerPoint (.pptx, .ppt)"
+            )
+            
+            if uploaded_files:
+                for uploaded_file in uploaded_files:
+                    if st.button(f"➕ Process {uploaded_file.name}", key=f"process_{uploaded_file.name}"):
+                        with st.spinner(f"🔄 Processing {uploaded_file.name}..."):
+                            # Extract text from file
+                            extracted_text, file_info = process_uploaded_file(uploaded_file)
+                            
+                            if extracted_text and not extracted_text.startswith("Error") and not extracted_text.startswith("Unsupported"):
+                                # Generate embedding
+                                embedding = embed_text(extracted_text, st.session_state.model)
+                                
+                                # Create document entry with file info
+                                doc_entry = f"[FILE: {uploaded_file.name}]\n{extracted_text[:500]}{'...' if len(extracted_text) > 500 else ''}"
+                                
+                                # Add to session state
+                                st.session_state.documents.append(doc_entry)
+                                st.session_state.embeddings.append(embedding)
+                                
+                                # Recreate FAISS index
+                                st.session_state.faiss_index = create_faiss_index(st.session_state.embeddings)
+                                
+                                st.success(f"✅ File processed! {file_info}")
+                                st.success(f"Total documents: {len(st.session_state.documents)}")
+                                st.rerun()
+                            else:
+                                st.error(f"⚠️ {extracted_text}")
         
         # Show current documents
         if st.session_state.documents:
             st.subheader(f"📚 Stored Documents ({len(st.session_state.documents)})")
+            
             for i, doc in enumerate(st.session_state.documents):
-                with st.expander(f"Document {i+1}: {doc[:30]}..."):
-                    st.write(f"**Text:** {doc}")
-                    st.write(f"**Embedding preview:** {st.session_state.embeddings[i][:5]}... (384 dimensions)")
+                # Check if it's a file-based document
+                is_file_doc = doc.startswith('[FILE:')
+                
+                if is_file_doc:
+                    # Extract filename from document
+                    filename = doc.split(']')[0].replace('[FILE: ', '')
+                    preview_text = doc.split('\n', 1)[1] if '\n' in doc else doc
+                    expander_title = f"📁 {filename}"
+                else:
+                    preview_text = doc
+                    expander_title = f"📄 Document {i+1}: {doc[:30]}..."
+                
+                with st.expander(expander_title):
+                    if is_file_doc:
+                        st.write(f"**File:** {filename}")
+                        st.write(f"**Content preview:** {preview_text[:200]}..." if len(preview_text) > 200 else preview_text)
+                    else:
+                        st.write(f"**Text:** {doc}")
                     
-                    if st.button(f"Remove Document {i+1}", key=f"remove_{i}"):
+                    with st.expander("🔢 View Embedding Preview"):
+                        st.code(f"Vector: [{', '.join([f'{x:.3f}' for x in st.session_state.embeddings[i][:8]])}...] (384 dimensions)", language="python")
+                    
+                    if st.button(f"🗑️ Remove Document {i+1}", key=f"remove_{i}"):
                         st.session_state.documents.pop(i)
                         st.session_state.embeddings.pop(i)
                         st.session_state.faiss_index = create_faiss_index(st.session_state.embeddings)
+                        st.session_state.search_results = None
                         st.rerun()
     
     # Section 2: Search

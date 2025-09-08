@@ -6,3 +6,6 @@ pandas
 matplotlib
 scikit-learn
 plotly
+pypdf2
+python-docx
+python-pptx
