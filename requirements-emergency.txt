@@ -1,3 +1,4 @@
+# Minimal requirements for immediate deployment
 streamlit
 faiss-cpu
 sentence-transformers

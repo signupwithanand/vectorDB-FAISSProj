@@ -496,6 +496,10 @@ def main():
                     help=help_text_parts[0] + help_text
                 )
             
+            # SAFETY: Ensure uploaded_files is always defined
+            if 'uploaded_files' not in locals():
+                uploaded_files = None
+                
             if uploaded_files:
                 for uploaded_file in uploaded_files:
                     if st.button(f"➕ Process {uploaded_file.name}", key=f"process_{uploaded_file.name}"):
