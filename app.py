@@ -464,6 +464,9 @@ def main():
         
         # Tab 2: File upload
         with tab2:
+            # Initialize uploaded_files to None
+            uploaded_files = None
+            
             # Determine available file types based on installed libraries
             available_types = []
             help_text_parts = ["Supported formats: "]
