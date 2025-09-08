@@ -1,0 +1,15 @@
+# Minimal requirements for basic functionality
+streamlit
+faiss-cpu
+sentence-transformers
+numpy
+pandas
+matplotlib
+scikit-learn
+plotly
+
+# File processing dependencies (may cause deployment issues on some platforms)
+# If deployment fails, comment out the lines below and redeploy
+pypdf2
+python-docx
+python-pptx

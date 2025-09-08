@@ -25,21 +25,27 @@ from typing import List, Tuple, Optional
 import time
 import io
 
-# File processing imports
+# File processing imports with better error handling
 try:
     import PyPDF2
+    PDF_AVAILABLE = True
 except ImportError:
     PyPDF2 = None
+    PDF_AVAILABLE = False
 
 try:
     from docx import Document
+    DOCX_AVAILABLE = True
 except ImportError:
     Document = None
+    DOCX_AVAILABLE = False
 
 try:
     from pptx import Presentation
+    PPTX_AVAILABLE = True
 except ImportError:
     Presentation = None
+    PPTX_AVAILABLE = False
 
 # Configure page
 st.set_page_config(
@@ -129,8 +135,8 @@ def extract_text_from_pdf(file) -> str:
     Returns:
         Extracted text as string
     """
-    if PyPDF2 is None:
-        return "PDF processing not available. Please install PyPDF2."
+    if not PDF_AVAILABLE:
+        return "PDF processing not available. Please install PyPDF2 or contact support."
     
     try:
         pdf_reader = PyPDF2.PdfReader(io.BytesIO(file.read()))
@@ -151,8 +157,8 @@ def extract_text_from_docx(file) -> str:
     Returns:
         Extracted text as string
     """
-    if Document is None:
-        return "Word document processing not available. Please install python-docx."
+    if not DOCX_AVAILABLE:
+        return "Word document processing not available. Please install python-docx or contact support."
     
     try:
         doc = Document(io.BytesIO(file.read()))
@@ -173,8 +179,8 @@ def extract_text_from_pptx(file) -> str:
     Returns:
         Extracted text as string
     """
-    if Presentation is None:
-        return "PowerPoint processing not available. Please install python-pptx."
+    if not PPTX_AVAILABLE:
+        return "PowerPoint processing not available. Please install python-pptx or contact support."
     
     try:
         prs = Presentation(io.BytesIO(file.read()))
@@ -458,12 +464,34 @@ def main():
         
         # Tab 2: File upload
         with tab2:
-            uploaded_files = st.file_uploader(
-                "📁 Upload documents:",
-                type=['pdf', 'docx', 'doc', 'pptx', 'ppt'],
-                accept_multiple_files=True,
-                help="Supported formats: PDF, Word documents (.docx, .doc), PowerPoint (.pptx, .ppt)"
-            )
+            # Determine available file types based on installed libraries
+            available_types = []
+            help_text_parts = ["Supported formats: "]
+            
+            if PDF_AVAILABLE:
+                available_types.append('pdf')
+                help_text_parts.append("PDF")
+            
+            if DOCX_AVAILABLE:
+                available_types.extend(['docx', 'doc'])
+                help_text_parts.append("Word documents (.docx, .doc)")
+            
+            if PPTX_AVAILABLE:
+                available_types.extend(['pptx', 'ppt'])
+                help_text_parts.append("PowerPoint (.pptx, .ppt)")
+            
+            if not available_types:
+                st.warning("⚠️ No file processing libraries available. Only manual text input is supported.")
+                st.info("To enable file uploads, install: pypdf2, python-docx, python-pptx")
+            else:
+                help_text = ", ".join(help_text_parts[1:])
+                
+                uploaded_files = st.file_uploader(
+                    "📁 Upload documents:",
+                    type=available_types,
+                    accept_multiple_files=True,
+                    help=help_text_parts[0] + help_text
+                )
             
             if uploaded_files:
                 for uploaded_file in uploaded_files:
